@@ -33,7 +33,7 @@ describe("atm", () => {
     expect(actual).toEqual(expected);
   });
 
-  it.skip("should return two bills of 20 if amount is 40", () => {
+  it("should return two bills of 20 if amount is 40", () => {
     const actual = atm(40);
 
     const expected = { 20: 2 };
