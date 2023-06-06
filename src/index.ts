@@ -14,33 +14,32 @@ const recursiveAtm =
       return {};
     }
 
-    let currentMinimumNumberOfBills = Infinity;
-    let bestWithdrawal = {};
+    let withdrawals: Withdrawal[] = [];
     let hasAccelerated = false;
 
     const withdrawableBills = availableBills.filter((bill) => bill <= amountToWithdraw);
 
     for (let index = 0; index < withdrawableBills.length; index++) {
-      if (currentMinimumNumberOfBills === 1) {
+      if (hasAccelerated) {
         continue;
       }
 
       const billToWithdraw = withdrawableBills[index];
       const remainingAmountToWithdraw = amountToWithdraw - billToWithdraw;
       const remainingWithdrawal = recursiveAtm({ accelerationFunction })(remainingAmountToWithdraw);
-      const numberOfBillsInRemainingWithdrwal = countBillsInWithdrwal(remainingWithdrawal);
 
-      if (numberOfBillsInRemainingWithdrwal < currentMinimumNumberOfBills) {
-        bestWithdrawal = {
-          ...remainingWithdrawal,
-          [billToWithdraw]: remainingWithdrawal[billToWithdraw] ? 1 + remainingWithdrawal[billToWithdraw] : 1,
-        };
-        currentMinimumNumberOfBills = numberOfBillsInRemainingWithdrwal;
-        //hasAccelerated = accelerationFunction(bestWithdrawal);
-      }
+      const withdrawal = {
+        ...remainingWithdrawal,
+        [billToWithdraw]: remainingWithdrawal[billToWithdraw] ? 1 + remainingWithdrawal[billToWithdraw] : 1,
+      };
+
+      withdrawals.push(withdrawal);
+      hasAccelerated = accelerationFunction(remainingWithdrawal);
     }
 
-    return bestWithdrawal;
+    return withdrawals
+      .sort((withdrawalA, withdrawalB) => countBillsInWithdrwal(withdrawalA) - countBillsInWithdrwal(withdrawalB))
+      .at(0);
   };
 
 const accelerationFunction = (withdrawal: Withdrawal): boolean => {
