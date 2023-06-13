@@ -1,60 +1,36 @@
-const availableBills = [50, 25, 20, 10, 5, 2, 1] as const;
-export type AvailableBills = typeof availableBills[number];
+type MappingFunction<U, V> = (u: U, index: number) => V;
 
-type Withdrawal = Partial<Record<AvailableBills, number>>;
+type ComparisonFunction<V> = (v1: V, v2: V) => number;
 
-type Configuration = {
-  accelerationFunction: (withdrawal: Withdrawal) => boolean;
+type AccelerationFunction<V> = (v: V) => boolean;
+
+type Input<U, V> = {
+  map: MappingFunction<U, V>;
+  compare: ComparisonFunction<V>;
+  accelerate?: AccelerationFunction<V>;
 };
 
-const recursiveAtm =
-  ({ accelerationFunction }: Configuration) =>
-  (amountToWithdraw: number): Withdrawal => {
-    if (amountToWithdraw === 0) {
-      return {};
-    }
+const findBestSolution =
+  <U, V>({ map, compare, accelerate }: Input<U, V>) =>
+  (values: U[]): V => {
+    let solutions: V[] = [];
 
-    let withdrawals: Withdrawal[] = [];
     let hasAccelerated = false;
 
-    const withdrawableBills = availableBills.filter((bill) => bill <= amountToWithdraw);
-
-    for (let index = 0; index < withdrawableBills.length; index++) {
+    for (let index = 0; index < values.length; index++) {
       if (hasAccelerated) {
         continue;
       }
 
-      const billToWithdraw = withdrawableBills[index];
-      const remainingAmountToWithdraw = amountToWithdraw - billToWithdraw;
-      const remainingWithdrawal = recursiveAtm({ accelerationFunction })(remainingAmountToWithdraw);
+      const result = map(values[index], index);
+      solutions.push(result);
 
-      const withdrawal = {
-        ...remainingWithdrawal,
-        [billToWithdraw]: remainingWithdrawal[billToWithdraw] ? 1 + remainingWithdrawal[billToWithdraw] : 1,
-      };
-
-      withdrawals.push(withdrawal);
-      hasAccelerated = accelerationFunction(remainingWithdrawal);
+      if (!!accelerate && accelerate(result)) {
+        hasAccelerated = true;
+      }
     }
 
-    return withdrawals
-      .sort((withdrawalA, withdrawalB) => countBillsInWithdrwal(withdrawalA) - countBillsInWithdrwal(withdrawalB))
-      .at(0);
+    return solutions.sort(compare)[0];
   };
 
-const accelerationFunction = (withdrawal: Withdrawal): boolean => {
-  return countBillsInWithdrwal(withdrawal) === 1;
-};
-
-export const atm = (amountToWithdraw: number) => {
-  const configuration: Configuration = {
-    accelerationFunction,
-  };
-  return recursiveAtm(configuration)(amountToWithdraw);
-};
-
-export const countBillsInWithdrwal = (withdrawal: Withdrawal): number => {
-  return Object.values(withdrawal).reduce((amountOfBill, currentTotalNumberOfBills) => {
-    return currentTotalNumberOfBills + amountOfBill;
-  }, 0);
-};
+export default findBestSolution;
