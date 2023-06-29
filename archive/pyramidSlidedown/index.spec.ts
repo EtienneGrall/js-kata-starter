@@ -1,4 +1,4 @@
-import findBestSolution from ".";
+import { EvaluatedPath, Pyramid, findBestSolution, pyramidSlideDown } from ".";
 
 describe("Test of findBestSolution()", () => {
   test("Comparison only", () => {
@@ -27,5 +27,19 @@ describe("Test of findBestSolution()", () => {
         accelerate: (i) => i === 10,
       })([3, 1, 2, 0, 4])
     ).toEqual(10);
+  });
+});
+
+describe("Pyramid slide down", () => {
+  test("Example", () => {
+    // GIVEN
+    const pyramid: Pyramid = [[3], [7, 4], [4, 2, 3], [6, 5, 9, 3]];
+
+    // WHEN
+    const actual = pyramidSlideDown(pyramid);
+
+    // THEN
+    const expected: EvaluatedPath = [3, 7, 2, 9];
+    expect(actual).toEqual(expected);
   });
 });
