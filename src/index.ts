@@ -11,20 +11,31 @@ type StrongAndWeak<W extends WeakDigit, S extends StrongDigit> = { weaks: OneTwo
 
 type WeakAdditionResult<W extends WeakDigit, S extends StrongDigit> = WeakOnly<W> | StrongOnly<S> | StrongAndWeak<W, S>;
 
-/* const repeatNTimes =
-  <W extends WeakDigit>(n: 1 | 2 | 3 | 4) =>
-  (digit: W): OneTwoThreeOrFour<W> => {
-    switch (n) {
-      case 1:
-        return `${digit}`;
-      case 2:
-        return `${digit}${digit}`;
-      case 3:
-        return `${digit}${digit}${digit}`;
-      case 4:
-        return `${digit}${digit}${digit}${digit}`;
-    }
-  }; */
+type WeakToStrongTransition = {
+  weak: WeakDigit;
+  strong: StrongDigit;
+  direction: "weakToStrong";
+};
+type StrongToWeakTransition = {
+  weak: WeakDigit;
+  strong: StrongDigit;
+  direction: "strongToWeak";
+};
+
+type Transition = WeakToStrongTransition | StrongToWeakTransition;
+
+const romanPowers: Array<Transition> = [
+  {
+    weak: "I",
+    strong: "V",
+    direction: "weakToStrong",
+  },
+  {
+    weak: "X",
+    strong: "V",
+    direction: "strongToWeak",
+  },
+];
 
 const weakAdditionTable = <W extends WeakDigit, S extends StrongDigit>(
   w: W,
@@ -107,40 +118,58 @@ export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): Structu
   let result: StructuredRomanNumber = {};
   let deduction: StructuredRomanNumber = {};
 
-  // Both are defined
-  if (a.I && b.I) {
-    const IadditionResult = weakTable[a.I][b.I];
-    if (!("strong" in IadditionResult)) {
-      result = { I: IadditionResult.weaks };
+  romanPowers.reduce(
+    (accumulator, transition) => {
+      const weakDigit = transition.weak;
+      const strongDigit = transition.strong;
+      let resultForThisIterration: StructuredRomanNumber = {};
+      let deductionForThisIterration: StructuredRomanNumber = {};
+      if (transition.direction === "weakToStrong") {
+        // Both are defined
+        if (a[weakDigit] && b[weakDigit]) {
+          const weakAdditionResult = weakTable[a[weakDigit]][b[weakDigit]];
+          if (!("strong" in weakAdditionResult)) {
+            resultForThisIterration = { [weakDigit]: weakAdditionResult.weaks };
+          }
+
+          if (!("weaks" in weakAdditionResult)) {
+            deductionForThisIterration = { [strongDigit]: weakAdditionResult.strong };
+          }
+
+          if ("weaks" in weakAdditionResult && "strong" in weakAdditionResult) {
+            resultForThisIterration = { [weakDigit]: weakAdditionResult.weaks };
+            deductionForThisIterration = { [strongDigit]: weakAdditionResult.strong };
+          }
+        }
+
+        // Only one is defined
+        if ((a[weakDigit] && !b[weakDigit]) || (b[weakDigit] && !a[weakDigit])) {
+          resultForThisIterration = { [weakDigit]: a[weakDigit] ?? b[weakDigit] };
+        }
+      }
+
+      if (transition.direction === "strongToWeak") {
+        resultForThisIterration = {
+          ...accumulator.result,
+          ...addVs(a, b),
+        };
+
+        resultForThisIterration = {
+          ...resultForThisIterration,
+          ...addVs({ V: result.V }, deduction),
+        };
+      }
+
+      return {
+        result: resultForThisIterration,
+        deduction: deductionForThisIterration,
+      };
+    },
+    {
+      result,
+      deduction,
     }
-
-    if (!("weaks" in IadditionResult)) {
-      deduction = { V: IadditionResult.strong };
-    }
-
-    if ("weaks" in IadditionResult && "strong" in IadditionResult) {
-      result = { I: IadditionResult.weaks };
-      deduction = { V: IadditionResult.strong };
-    }
-  }
-
-  // Only one is defined
-  if ((a.I && !b.I) || (b.I && !a.I)) {
-    result = { I: a.I ?? b.I };
-  }
-
-  console.log({ deduction, result });
-  result = {
-    ...result,
-    ...addVs(a, b),
-  };
-  console.log({ result });
-
-  result = {
-    ...result,
-    ...addVs({ V: result.V }, deduction),
-  };
-  console.log({ result });
+  );
 
   return result;
 };
