@@ -24,7 +24,7 @@ type StrongToWeakTransition = {
 
 type Transition = WeakToStrongTransition | StrongToWeakTransition;
 
-const romanPowers: Array<Transition> = [
+const transitions: Array<Transition> = [
   {
     weak: "I",
     strong: "V",
@@ -90,8 +90,6 @@ type StructuredRomanNumber = {
   [S in StrongDigit]?: OnlyOne<S>;
 };
 
-export type RomanNumber = `${StrongDigit | ""}${OneTwoThreeOrFour<WeakDigit> | ""}`;
-
 const addVs = (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
   // Both are defined
   if (a.V && b.V) {
@@ -115,10 +113,10 @@ const addVs = (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
 export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): StructuredRomanNumber => {
   const weakTable = weakAdditionTable("I", "V");
 
-  let result: StructuredRomanNumber = {};
-  let deduction: StructuredRomanNumber = {};
+  let initialResult: StructuredRomanNumber = {};
+  let initialDeduction: StructuredRomanNumber = {};
 
-  romanPowers.reduce(
+  const finalResult = transitions.reduce(
     (accumulator, transition) => {
       const weakDigit = transition.weak;
       const strongDigit = transition.strong;
@@ -149,14 +147,14 @@ export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): Structu
       }
 
       if (transition.direction === "strongToWeak") {
-        resultForThisIterration = {
+        const resultForThisIterrationWithoutDeduction = {
           ...accumulator.result,
           ...addVs(a, b),
         };
 
         resultForThisIterration = {
-          ...resultForThisIterration,
-          ...addVs({ V: result.V }, deduction),
+          ...resultForThisIterrationWithoutDeduction,
+          ...addVs({ V: resultForThisIterrationWithoutDeduction.V }, accumulator.deduction),
         };
       }
 
@@ -166,10 +164,10 @@ export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): Structu
       };
     },
     {
-      result,
-      deduction,
+      result: initialResult,
+      deduction: initialDeduction,
     }
   );
 
-  return result;
+  return finalResult.result;
 };
