@@ -22,6 +22,9 @@ type StrongToWeakTransition = {
   direction: "strongToWeak";
 };
 
+const bothAreDefined = <T extends string>(a: T | undefined, b: T | undefined) => a && b;
+const onlyOneIsDefined = <T extends string>(a: T | undefined, b: T | undefined) => (a && !b) || (b && !a);
+
 type Transition = WeakToStrongTransition | StrongToWeakTransition;
 
 const transitions: Array<Transition> = [
@@ -105,45 +108,61 @@ type StructuredRomanNumber = {
   [S in StrongDigit]?: OnlyOne<S>;
 };
 
-const addStrongs = (transition: StrongToWeakTransition) => (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
-  const nextWeak = transition.nextWeak;
-  const strong = transition.strong;
+const buildRomanNumberOfGreatestWeakDigit =
+  (transition: StrongToWeakTransition) =>
+  (a: StructuredRomanNumber, b: StructuredRomanNumber): StructuredRomanNumber => {
+    const nextWeak = transition.nextWeak;
+    const strong = transition.strong;
 
-  const strongTable = strongAdditionTable(strong, nextWeak);
-
-  // Both are defined
-  if (a[strong] && b[strong]) {
+    const strongTable = strongAdditionTable(strong, nextWeak);
     const additionResult = strongTable[a[strong]][b[strong]];
 
     return {
       [nextWeak]: `${additionResult.weaks}`,
       [strong]: undefined,
     };
-  }
+  };
 
-  // Only one is defined
-  if ((a[strong] && !b[strong]) || (b[strong] && !a[strong])) {
-    return { [strong]: a[strong] ?? b[strong] };
-  }
+const buildRomanNumberOfSameStrongDigit =
+  (transition: StrongToWeakTransition) =>
+  (a: StructuredRomanNumber, b: StructuredRomanNumber): StructuredRomanNumber => {
+    const strong = transition.strong;
+    const definedStrong = a[strong] ?? b[strong];
+    return {
+      [strong]: definedStrong,
+    };
+  };
 
-  return {};
-};
+const addStrongs =
+  (transition: StrongToWeakTransition) =>
+  (a: StructuredRomanNumber, b: StructuredRomanNumber): StructuredRomanNumber => {
+    const strong = transition.strong;
+    if (bothAreDefined(a[strong], b[strong])) {
+      return buildRomanNumberOfGreatestWeakDigit(transition)(a, b);
+    }
+
+    if (onlyOneIsDefined(a[strong], b[strong])) {
+      return buildRomanNumberOfSameStrongDigit(transition)(a, b);
+    }
+
+    return {};
+  };
 
 const addWeaks = (transition: WeakToStrongTransition) => (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
   const weak = transition.weak;
   const nextStrong = transition.nextStrong;
 
-  // Both are defined
-  if (a[weak] && b[weak]) {
+  if (bothAreDefined(a[weak], b[weak])) {
     const weakTable = weakAdditionTable(weak, nextStrong);
-
     const additionResult = weakTable[a[weak]][b[weak]];
 
-    if (!("strong" in additionResult)) {
+    const noDeduction = !("strong" in additionResult);
+    if (noDeduction) {
       return { result: { [weak]: additionResult.weaks }, deduction: {} };
     }
 
-    if (!("weaks" in additionResult)) {
+    const noRemainder = !("weaks" in additionResult);
+    if (noRemainder) {
       return { deduction: { [nextStrong]: additionResult.strong }, result: {} };
     }
 
@@ -152,11 +171,11 @@ const addWeaks = (transition: WeakToStrongTransition) => (a: StructuredRomanNumb
     }
   }
 
-  // Only one is defined
-  if ((a[weak] && !b[weak]) || (b[weak] && !a[weak])) {
+  if (onlyOneIsDefined(a[weak], b[weak])) {
     return { result: { [weak]: a[weak] ?? b[weak] }, deduction: {} };
   }
 
+  // 0 + 0
   return { result: {}, deduction: {} };
 };
 
