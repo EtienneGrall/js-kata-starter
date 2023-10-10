@@ -13,12 +13,12 @@ type WeakAdditionResult<W extends WeakDigit, S extends StrongDigit> = WeakOnly<W
 
 type WeakToStrongTransition = {
   weak: WeakDigit;
-  strong: StrongDigit;
+  nextStrong: StrongDigit;
   direction: "weakToStrong";
 };
 type StrongToWeakTransition = {
-  weak: WeakDigit;
   strong: StrongDigit;
+  nextWeak: WeakDigit;
   direction: "strongToWeak";
 };
 
@@ -27,27 +27,27 @@ type Transition = WeakToStrongTransition | StrongToWeakTransition;
 const transitions: Array<Transition> = [
   {
     weak: "I",
-    strong: "V",
+    nextStrong: "V",
     direction: "weakToStrong",
   },
   {
-    weak: "X",
+    nextWeak: "X",
     strong: "V",
     direction: "strongToWeak",
   },
   {
     weak: "X",
-    strong: "L",
+    nextStrong: "L",
     direction: "weakToStrong",
   },
   {
-    weak: "C",
+    nextWeak: "C",
     strong: "L",
     direction: "strongToWeak",
   },
   {
     weak: "C",
-    strong: "D",
+    nextStrong: "D",
     direction: "weakToStrong",
   },
 ];
@@ -105,55 +105,56 @@ type StructuredRomanNumber = {
   [S in StrongDigit]?: OnlyOne<S>;
 };
 
-const addStrongs = (transition: Transition) => (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
-  const weakDigit = transition.weak;
-  const strongDigit = transition.strong;
+const addStrongs = (transition: StrongToWeakTransition) => (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
+  const nextWeak = transition.nextWeak;
+  const strong = transition.strong;
+
+  const strongTable = strongAdditionTable(strong, nextWeak);
 
   // Both are defined
-  if (a[strongDigit] && b[strongDigit]) {
-    const strongTable = strongAdditionTable(strongDigit, weakDigit);
-    const additionResult = strongTable[a[strongDigit]][b[strongDigit]];
+  if (a[strong] && b[strong]) {
+    const additionResult = strongTable[a[strong]][b[strong]];
 
     return {
-      [weakDigit]: `${additionResult.weaks}`,
-      [strongDigit]: undefined,
+      [nextWeak]: `${additionResult.weaks}`,
+      [strong]: undefined,
     };
   }
 
   // Only one is defined
-  if ((a[strongDigit] && !b[strongDigit]) || (b[strongDigit] && !a[strongDigit])) {
-    return { [strongDigit]: a[strongDigit] ?? b[strongDigit] };
+  if ((a[strong] && !b[strong]) || (b[strong] && !a[strong])) {
+    return { [strong]: a[strong] ?? b[strong] };
   }
 
   return {};
 };
 
-const addWeaks = (transition: Transition) => (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
-  const weakDigit = transition.weak;
-  const strongDigit = transition.strong;
+const addWeaks = (transition: WeakToStrongTransition) => (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
+  const weak = transition.weak;
+  const nextStrong = transition.nextStrong;
 
   // Both are defined
-  if (a[weakDigit] && b[weakDigit]) {
-    const weakTable = weakAdditionTable(weakDigit, strongDigit);
+  if (a[weak] && b[weak]) {
+    const weakTable = weakAdditionTable(weak, nextStrong);
 
-    const additionResult = weakTable[a[weakDigit]][b[weakDigit]];
+    const additionResult = weakTable[a[weak]][b[weak]];
 
     if (!("strong" in additionResult)) {
-      return { result: { [weakDigit]: additionResult.weaks }, deduction: {} };
+      return { result: { [weak]: additionResult.weaks }, deduction: {} };
     }
 
     if (!("weaks" in additionResult)) {
-      return { deduction: { [strongDigit]: additionResult.strong }, result: {} };
+      return { deduction: { [nextStrong]: additionResult.strong }, result: {} };
     }
 
     if ("weaks" in additionResult && "strong" in additionResult) {
-      return { result: { [weakDigit]: additionResult.weaks }, deduction: { [strongDigit]: additionResult.strong } };
+      return { result: { [weak]: additionResult.weaks }, deduction: { [nextStrong]: additionResult.strong } };
     }
   }
 
   // Only one is defined
-  if ((a[weakDigit] && !b[weakDigit]) || (b[weakDigit] && !a[weakDigit])) {
-    return { result: { [weakDigit]: a[weakDigit] ?? b[weakDigit] }, deduction: {} };
+  if ((a[weak] && !b[weak]) || (b[weak] && !a[weak])) {
+    return { result: { [weak]: a[weak] ?? b[weak] }, deduction: {} };
   }
 
   return { result: {}, deduction: {} };
@@ -165,8 +166,6 @@ export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): Structu
 
   const finalResult = transitions.reduce(
     (accumulator, transition) => {
-      const weakDigit = transition.weak;
-      const strongDigit = transition.strong;
       let resultForThisIterration: StructuredRomanNumber = {};
       let deductionForThisIterration: StructuredRomanNumber = {};
       if (transition.direction === "weakToStrong") {
@@ -185,6 +184,7 @@ export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): Structu
       }
 
       if (transition.direction === "strongToWeak") {
+        const strong = transition.strong;
         const resultForThisIterrationWithoutDeduction = {
           ...accumulator.result,
           ...addStrongs(transition)(a, b),
@@ -193,7 +193,7 @@ export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): Structu
         resultForThisIterration = {
           ...resultForThisIterrationWithoutDeduction,
           ...addStrongs(transition)(
-            { [strongDigit]: resultForThisIterrationWithoutDeduction[strongDigit] },
+            { [strong]: resultForThisIterrationWithoutDeduction[strong] },
             accumulator.deduction
           ),
         };
