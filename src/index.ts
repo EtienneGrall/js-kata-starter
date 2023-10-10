@@ -35,6 +35,21 @@ const transitions: Array<Transition> = [
     strong: "V",
     direction: "strongToWeak",
   },
+  {
+    weak: "X",
+    strong: "L",
+    direction: "weakToStrong",
+  },
+  {
+    weak: "C",
+    strong: "L",
+    direction: "strongToWeak",
+  },
+  {
+    weak: "C",
+    strong: "D",
+    direction: "weakToStrong",
+  },
 ];
 
 const weakAdditionTable = <W extends WeakDigit, S extends StrongDigit>(
@@ -90,29 +105,30 @@ type StructuredRomanNumber = {
   [S in StrongDigit]?: OnlyOne<S>;
 };
 
-const addVs = (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
+const addStrongs = (transition: Transition) => (a: StructuredRomanNumber, b: StructuredRomanNumber) => {
+  const weakDigit = transition.weak;
+  const strongDigit = transition.strong;
+
   // Both are defined
-  if (a.V && b.V) {
-    const strongTable = strongAdditionTable("V", "X");
-    const VadditionResult = strongTable[a.V][b.V];
+  if (a[strongDigit] && b[strongDigit]) {
+    const strongTable = strongAdditionTable(strongDigit, weakDigit);
+    const additionResult = strongTable[a[strongDigit]][b[strongDigit]];
 
     return {
-      X: `${VadditionResult.weaks}`,
-      V: undefined,
+      [weakDigit]: `${additionResult.weaks}`,
+      [strongDigit]: undefined,
     };
   }
 
   // Only one is defined
-  if ((a.V && !b.V) || (b.V && !a.V)) {
-    return { V: a.V ?? b.V };
+  if ((a[strongDigit] && !b[strongDigit]) || (b[strongDigit] && !a[strongDigit])) {
+    return { [strongDigit]: a[strongDigit] ?? b[strongDigit] };
   }
 
   return {};
 };
 
 export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): StructuredRomanNumber => {
-  const weakTable = weakAdditionTable("I", "V");
-
   let initialResult: StructuredRomanNumber = {};
   let initialDeduction: StructuredRomanNumber = {};
 
@@ -123,11 +139,13 @@ export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): Structu
       let resultForThisIterration: StructuredRomanNumber = {};
       let deductionForThisIterration: StructuredRomanNumber = {};
       if (transition.direction === "weakToStrong") {
+        const weakTable = weakAdditionTable(transition.weak, transition.strong);
+
         // Both are defined
         if (a[weakDigit] && b[weakDigit]) {
           const weakAdditionResult = weakTable[a[weakDigit]][b[weakDigit]];
           if (!("strong" in weakAdditionResult)) {
-            resultForThisIterration = { [weakDigit]: weakAdditionResult.weaks };
+            resultForThisIterration = { ...accumulator.result, [weakDigit]: weakAdditionResult.weaks };
           }
 
           if (!("weaks" in weakAdditionResult)) {
@@ -135,26 +153,30 @@ export const add = (a: StructuredRomanNumber, b: StructuredRomanNumber): Structu
           }
 
           if ("weaks" in weakAdditionResult && "strong" in weakAdditionResult) {
-            resultForThisIterration = { [weakDigit]: weakAdditionResult.weaks };
+            resultForThisIterration = { ...accumulator.result, [weakDigit]: weakAdditionResult.weaks };
             deductionForThisIterration = { [strongDigit]: weakAdditionResult.strong };
           }
         }
 
         // Only one is defined
         if ((a[weakDigit] && !b[weakDigit]) || (b[weakDigit] && !a[weakDigit])) {
-          resultForThisIterration = { [weakDigit]: a[weakDigit] ?? b[weakDigit] };
+          resultForThisIterration = { ...accumulator.result, [weakDigit]: a[weakDigit] ?? b[weakDigit] };
+        }
+
+        if (!a[weakDigit] && !b[weakDigit]) {
+          resultForThisIterration = { ...accumulator.result };
         }
       }
 
       if (transition.direction === "strongToWeak") {
         const resultForThisIterrationWithoutDeduction = {
           ...accumulator.result,
-          ...addVs(a, b),
+          ...addStrongs(transition)(a, b),
         };
 
         resultForThisIterration = {
           ...resultForThisIterrationWithoutDeduction,
-          ...addVs({ V: resultForThisIterrationWithoutDeduction.V }, accumulator.deduction),
+          ...addStrongs(transition)({ V: resultForThisIterrationWithoutDeduction.V }, accumulator.deduction),
         };
       }
 

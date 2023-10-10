@@ -80,4 +80,36 @@ describe("roman addition", () => {
     // THEN
     expect(actual).toEqual({ X: "X" });
   });
+
+  test("should add X and XX", () => {
+    // WHEN
+    const actual = add({ X: "X" }, { X: "XX" });
+
+    // THEN
+    expect(actual).toEqual({ X: "XXX" });
+  });
+
+  test("should add XX and XXX", () => {
+    // WHEN
+    const actual = add({ X: "XX" }, { X: "XXX" });
+
+    // THEN
+    expect(actual).toEqual({ L: "L" });
+  });
+
+  test("should add LX and XXX", () => {
+    // WHEN
+    const actual = add({ X: "X", L: "L" }, { X: "XXX" });
+
+    // THEN
+    expect(actual).toEqual({ L: "L", X: "XXXX" });
+  });
+
+  test("should add L and L", () => {
+    // WHEN
+    const actual = add({ L: "L" }, { L: "L" });
+
+    // THEN
+    expect(actual).toEqual({ C: "C" });
+  });
 });
